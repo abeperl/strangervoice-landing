@@ -23,25 +23,33 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const webhookRes = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email,
-        source: body?.source ?? 'landing_page',
-        timestamp: new Date().toISOString(),
-      }),
+    // Google Apps Script requires GET with query params (POST body is dropped on redirect)
+    const source = (body?.source ?? 'landing_page') as string
+    const timestamp = new Date().toISOString()
+    const url = new URL(webhookUrl)
+    url.searchParams.set('email', email)
+    url.searchParams.set('source', source)
+    url.searchParams.set('timestamp', timestamp)
+
+    const webhookRes = await fetch(url.toString(), {
+      method: 'GET',
+      redirect: 'follow',
     })
 
-    if (!webhookRes.ok) {
-      console.error('[waitlist] webhook responded with', webhookRes.status)
+    const text = await webhookRes.text()
+    let result: Record<string, unknown> = {}
+    try { result = JSON.parse(text) } catch {}
+
+    // 200 with JSON means success; 302 redirect is also normal for Apps Script
+    if (!webhookRes.ok && webhookRes.status !== 302) {
+      console.error('[waitlist] webhook responded with', webhookRes.status, text)
       return NextResponse.json(
         { error: 'Failed to join waitlist. Please try again.' },
         { status: 500 }
       )
     }
 
-    return NextResponse.json({ success: true }, { status: 200 })
+    return NextResponse.json({ success: true, result }, { status: 200 })
   } catch (err) {
     console.error('[waitlist] error:', err)
     return NextResponse.json(
