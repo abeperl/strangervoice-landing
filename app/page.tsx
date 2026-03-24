@@ -73,12 +73,31 @@ const PREMIUM_FEATURES = [
 export default function Home() {
   const [email, setEmail] = useState('')
   const [submitted, setSubmitted] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [errorMsg, setErrorMsg] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (email) {
-      setSubmitted(true)
+    if (!email) return
+    setIsLoading(true)
+    setErrorMsg('')
+    try {
+      const res = await fetch('/api/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, source: 'landing_page' }),
+      })
+      if (res.ok) {
+        setSubmitted(true)
+      } else {
+        const data = await res.json().catch(() => ({}))
+        setErrorMsg(data?.error ?? 'Something went wrong. Please try again.')
+      }
+    } catch {
+      setErrorMsg('Network error. Please check your connection.')
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -729,14 +748,14 @@ export default function Home() {
                 marginBottom: '0.75rem',
               }}
             >
-              Stay in the Loop
+              Join the Beta Waitlist
             </h2>
             <p style={{
               color: 'rgba(255,255,255,0.65)',
               marginBottom: '2rem',
               fontSize: '1.05rem',
             }}>
-              Get notified about new features and updates
+              {"Be first to get access. We'll add you as a tester on Google Play."}
             </p>
 
             {submitted ? (
@@ -751,36 +770,59 @@ export default function Home() {
                   color: '#4fc3f7',
                 }}
               >
-                {"You're on the list! 🎉"}
+                {"You're on the list! 🎉 We'll add you as a tester soon."}
               </div>
             ) : (
-              <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="your@email.com"
-                  required
-                  style={{
-                    flex: 1,
-                    minWidth: '200px',
-                    padding: '0.875rem 1.25rem',
-                    borderRadius: '2rem',
-                    border: '1px solid rgba(255,255,255,0.15)',
-                    background: 'rgba(255,255,255,0.07)',
-                    color: 'white',
-                    fontSize: '1rem',
-                    outline: 'none',
-                  }}
-                />
-                <button
-                  type="submit"
-                  className="btn-primary"
-                  style={{ border: 'none', cursor: 'pointer' }}
-                >
-                  Notify Me
-                </button>
-              </form>
+              <>
+                {errorMsg && (
+                  <div
+                    style={{
+                      background: 'rgba(233,69,96,0.12)',
+                      border: '1px solid rgba(233,69,96,0.35)',
+                      borderRadius: '0.75rem',
+                      padding: '0.75rem 1.25rem',
+                      marginBottom: '1rem',
+                      fontSize: '0.95rem',
+                      color: '#e94560',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {errorMsg}
+                  </div>
+                )}
+                <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="your@email.com"
+                    required
+                    style={{
+                      flex: 1,
+                      minWidth: '200px',
+                      padding: '0.875rem 1.25rem',
+                      borderRadius: '2rem',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      background: 'rgba(255,255,255,0.07)',
+                      color: 'white',
+                      fontSize: '1rem',
+                      outline: 'none',
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                    disabled={isLoading}
+                    style={{
+                      border: 'none',
+                      cursor: isLoading ? 'not-allowed' : 'pointer',
+                      opacity: isLoading ? 0.7 : 1,
+                    }}
+                  >
+                    {isLoading ? 'Joining…' : 'Join Waitlist'}
+                  </button>
+                </form>
+              </>
             )}
           </div>
         </div>
